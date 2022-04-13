@@ -79,8 +79,8 @@ endif
    CXXFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2 $(DEFINES)
    CFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2 $(DEFINES)
 ifeq ($(platform),ios-arm64)
-   CC = cc -arch arm64 -isysroot $(IOSSDK) -stdlib=libc++
-   CXX = c++ -arch arm64 -isysroot $(IOSSDK) -stdlib=libc++
+   CC = cc -arch arm64 -isysroot $(IOSSDK)
+   CXX = c++ -arch arm64 -isysroot $(IOSSDK)
 else
    CC = cc -arch armv7 -isysroot $(IOSSDK)
    CXX = c++ -arch armv7 -isysroot $(IOSSDK)
