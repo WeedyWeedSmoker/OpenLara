@@ -84,6 +84,7 @@ ifeq ($(platform),ios-arm64)
 else
    CC = cc -arch armv7 -isysroot $(IOSSDK)
    CXX = c++ -arch armv7 -isysroot $(IOSSDK)
+endif
 ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
 	CC     += -miphoneos-version-min=8.0
 	CXXFLAGS += -miphoneos-version-min=8.0
