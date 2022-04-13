@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 		<head>
 			<title>OpenLara</title>
+			<link href="/projects/OpenLara/favicon.ico" rel="shortcut icon" type="image/x-icon" />
 			<style>
 			html {
-				overflow: hidden;
+				overflow: auto;
 			}
 			body {
 				margin: 0px;
 				font-size: 1.0em;
-				overflow: hidden;
 			}
 			.game_fs {
 				position: fixed;
@@ -38,7 +38,7 @@
 			<button id="goFS">Go fullscreen</button>
 			<canvas class="game" id="canvas" width="854" height="480" oncontextmenu="event.preventDefault()"></canvas><br>
 			<div id="status">Starting...</div>
-			<script type='text/javascript'>
+			<script>
 				var statusElement = document.getElementById('status');
 				var canvasElement = document.getElementById('canvas');
 				var proc;
@@ -55,7 +55,7 @@
 				window.onload = function() { window.focus(); }
 				
 				var Module = {
-					TOTAL_MEMORY: 64*1024*1024,
+					TOTAL_MEMORY: 192*1024*1024,
 					preRun: [],
 					postRun: [],
 					print: (function() {
@@ -133,7 +133,19 @@
 						id = 7;
 					} else if (lang == "ja") {
 						id = 8;
-					}
+					} else if (lang == "gr") {
+						id = 9;
+					} else if (lang == "fi") {
+                        id = 10;
+                    } else if (lang == "cs") {
+                        id = 11;
+                    } else if (lang == "zh") {
+                        id = 12;
+                    } else if (lang == "hu") {
+                        id = 13;
+                    } else if (lang == "sv") {
+                        id = 14;
+                    }
 					Module.ccall('set_def_lang', 'null', ['number'], [id]);
 				}
 
@@ -161,14 +173,14 @@
 				};
 			</script>
 
-			<span id="info">
-				<input type="file" id="browseFile" style="display:none" accept=".phd,.psx, .tr2" onchange="readLevel(event)" />
-				<input type="button" value="Browse Level" onclick="document.getElementById('browseFile').click();" /> (.PHD, .PSX, .TR2)&nbsp;
+			<div id="info">
+				<input type="file" id="browseFile" style="display:none" accept=".phd,.psx, .tr2, .tr4" onchange="readLevel(event)" />
+				<input type="button" value="Browse Level" onclick="document.getElementById('browseFile').click();" /> (.PHD, .PSX, .TR2, .TR4)&nbsp;
 				<!--
 				<input type="button" value="Backup Saves" onclick="backupSaves();" />
 				<input type="button" value="Restore Saves" onclick="restoreSaves();" />
 -->
-				<p style="margin:8px">
+				<div style="margin:8px">
 					OpenLara on <a target="_blank" href="https://github.com/XProger/OpenLara">github</a> & <a target="_blank" href="https://www.facebook.com/OpenLaraTR">facebook</a><br>
 				
 					<div id="latest_changes" style="margin:8px">
@@ -177,8 +189,8 @@
 						?></i><br>
 						<input type="button" value="Latest changes" onclick="getLatestChanges()" />
 					</div>
-				</p>
-			</span>
+				</div>
+			</div>
 
 			<script>
 				var script = document.createElement('script');

@@ -2,6 +2,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <linux/input.h>
+#include <X11/Xutil.h>
 #include <linux/joystick.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -18,7 +19,7 @@
 // timing
 unsigned int startTime;
 
-int osGetTime() {
+int osGetTimeMS() {
     timeval t;
     gettimeofday(&t, NULL);
     return int((t.tv_sec - startTime) * 1000 + t.tv_usec / 1000);
@@ -26,7 +27,7 @@ int osGetTime() {
 
 // sound
 #define SND_FRAME_SIZE  4
-#define SND_DATA_SIZE   (1024 * SND_FRAME_SIZE)
+#define SND_DATA_SIZE   (2352 * SND_FRAME_SIZE)
 
 pa_simple *sndOut;
 pthread_t sndThread;
@@ -77,17 +78,28 @@ void sndFree() {
 }
 
 // Input
-InputKey keyToInputKey(int code) {
-    int codes[] = {
-        113, 114, 111, 116, 65, 23, 36, 9, 50, 37, 64,
-        19, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-        38, 56, 54, 40, 26, 41, 42, 43, 31, 44, 45, 46, 58,
-        57, 32, 33, 24, 27, 39, 28, 30, 55, 25, 53, 29, 52,
+InputKey keyToInputKey(Display *dpy, XKeyEvent event) {
+    KeySym code = XLookupKeysym(&event, 0);
+
+    if (code == XK_Shift_R)   code = XK_Shift_L;
+    if (code == XK_Control_R) code = XK_Control_L;
+    if (code == XK_Alt_R)     code = XK_Alt_L;
+
+    KeySym codes[] = {
+        XK_Left, XK_Right, XK_Up, XK_Down, XK_space, XK_Tab, XK_Return, XK_Escape, XK_Shift_L, XK_Control_L, XK_Alt_L,
+        XK_0, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9,
+        XK_a, XK_b, XK_c, XK_d, XK_e, XK_f, XK_g, XK_h, XK_i, XK_j, XK_k, XK_l, XK_m,
+        XK_n, XK_o, XK_p, XK_q, XK_r, XK_s, XK_t, XK_u, XK_v, XK_w, XK_x, XK_y, XK_z,
+        XK_KP_0, XK_KP_1, XK_KP_2, XK_KP_3, XK_KP_4, XK_KP_5, XK_KP_6, XK_KP_7, XK_KP_8, XK_KP_9, XK_KP_Add, XK_KP_Subtract, XK_KP_Multiply, XK_KP_Divide, XK_KP_Separator, 
+        XK_F1, XK_F2, XK_F3, XK_F4, XK_F5, XK_F6, XK_F7, XK_F8, XK_F9, XK_F10, XK_F11, XK_F12,
+        XK_minus, XK_equal, XK_bracketleft, XK_bracketright, XK_slash, XK_backslash, XK_comma, XK_period, XK_grave, XK_semicolon, XK_apostrophe, XK_Page_Up, XK_Page_Down, XK_Home, XK_End, XK_Delete, XK_Insert, XK_BackSpace
     };
 
-    for (int i = 0; i < sizeof(codes) / sizeof(codes[0]); i++)
-        if (codes[i] == code)
+    for (int i = 0; i < COUNT(codes); i++) {
+        if (XKeysymToKeycode(dpy, codes[i]) == event.keycode) {
             return (InputKey)(ikLeft + i);
+        }
+    }
     return ikNone;
 }
 
@@ -185,7 +197,7 @@ void joyInit() {
             joy.fx.type         = FF_RUMBLE;
             joy.fx.replay.delay = 0;
             joy.vL = joy.oL = joy.vR = joy.oR = 0.0f;
-            joy.time  = osGetTime();
+            joy.time  = Core::getTime();
         }
     }
 }
@@ -222,7 +234,7 @@ void joyRumble(JoyDevice &joy) {
     if (joy.oL == 0.0f && joy.vL == 0.0f && joy.oR == 0.0f && joy.vR == 0.0f)
         return;
  
-    if (osGetTime() <= joy.time)
+    if (Core::getTime() <= joy.time)
         return;
      
     input_event event;
@@ -255,7 +267,7 @@ void joyRumble(JoyDevice &joy) {
     joy.oL = joy.vL;
     joy.oR = joy.vR;
     
-    joy.time = osGetTime() + joy.fx.replay.length;
+    joy.time = Core::getTime() + joy.fx.replay.length;
 }
 
 void joyUpdate() {
@@ -326,7 +338,7 @@ void toggle_fullscreen(Display* dpy, Window win) {
     XSendEvent(dpy, DefaultRootWindow(dpy), False, SubstructureNotifyMask, &xev);
 }
 
-void WndProc(const XEvent &e,Display*dpy,Window wnd) {
+void WndProc(const XEvent &e, Display* dpy, Window wnd) {
     switch (e.type) {
         case ConfigureNotify :
             Core::width  = e.xconfigure.width;
@@ -338,7 +350,7 @@ void WndProc(const XEvent &e,Display*dpy,Window wnd) {
                 toggle_fullscreen(dpy,wnd);
                 break;
             }
-            Input::setDown(keyToInputKey(e.xkey.keycode), e.type == KeyPress);
+            Input::setDown(keyToInputKey(dpy, e.xkey), e.type == KeyPress);
             break;
         case ButtonPress :
         case ButtonRelease : {
@@ -351,6 +363,34 @@ void WndProc(const XEvent &e,Display*dpy,Window wnd) {
             Input::setPos(ikMouseL, vec2((float)e.xmotion.x, (float)e.xmotion.y));
             break;
     }
+}
+
+int checkLanguage() {
+    char *lang = getenv("LANG");
+    if (!lang || strlen(lang) < 2) return 0;
+
+    uint16 id;
+    memcpy(&id, lang, 2);
+
+    if (id == TWOCC("en")) return STR_LANG_EN - STR_LANG_EN;
+    if (id == TWOCC("fr")) return STR_LANG_FR - STR_LANG_EN;
+    if (id == TWOCC("de")) return STR_LANG_DE - STR_LANG_EN;
+    if (id == TWOCC("es")) return STR_LANG_ES - STR_LANG_EN;
+    if (id == TWOCC("it")) return STR_LANG_IT - STR_LANG_EN;
+    if (id == TWOCC("pl")) return STR_LANG_PL - STR_LANG_EN;
+    if (id == TWOCC("pt")) return STR_LANG_PT - STR_LANG_EN;
+    if (id == TWOCC("uk")) return STR_LANG_RU - STR_LANG_EN;
+    if (id == TWOCC("be")) return STR_LANG_RU - STR_LANG_EN;
+    if (id == TWOCC("ru")) return STR_LANG_RU - STR_LANG_EN;
+    if (id == TWOCC("ja")) return STR_LANG_JA - STR_LANG_EN;
+    if (id == TWOCC("gr")) return STR_LANG_GR - STR_LANG_EN;
+    if (id == TWOCC("fi")) return STR_LANG_FI - STR_LANG_EN;
+    if (id == TWOCC("cs")) return STR_LANG_CZ - STR_LANG_EN;
+    if (id == TWOCC("zh")) return STR_LANG_CN - STR_LANG_EN;
+    if (id == TWOCC("hu")) return STR_LANG_HU - STR_LANG_EN;
+    if (id == TWOCC("sv")) return STR_LANG_SV - STR_LANG_EN;
+
+    return 0;
 }
 
 int main(int argc, char **argv) {
@@ -405,6 +445,8 @@ int main(int argc, char **argv) {
     gettimeofday(&t, NULL);
     startTime = t.tv_sec;
 
+    Core::defLang = checkLanguage();
+
     joyInit();
     sndInit();
     Game::init(argc > 1 ? argv[1] : NULL);
@@ -415,7 +457,7 @@ int main(int argc, char **argv) {
             XNextEvent(dpy, &event);
             if (event.type == ClientMessage && *event.xclient.data.l == WM_DELETE_WINDOW)
                 Core::quit();
-            WndProc(event,dpy,wnd);
+            WndProc(event, dpy, wnd);
         } else {
             joyUpdate();
 			bool updated = Game::update();
